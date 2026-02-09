@@ -21,8 +21,8 @@ let VulnerabilitiesController = class VulnerabilitiesController {
     constructor(vulnerabilitiesService) {
         this.vulnerabilitiesService = vulnerabilitiesService;
     }
-    findAll(req) {
-        return this.vulnerabilitiesService.findAllForUser(req.user.id);
+    findAll(req, projectId) {
+        return this.vulnerabilitiesService.findAllForUser(req.user.id, projectId);
     }
     findOne(id, req) {
         return this.vulnerabilitiesService.findOneForUser(id, req.user.id);
@@ -35,8 +35,9 @@ exports.VulnerabilitiesController = VulnerabilitiesController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('project_id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], VulnerabilitiesController.prototype, "findAll", null);
 __decorate([

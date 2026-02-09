@@ -5,6 +5,7 @@ import { Scan } from '../entities/scan.entity';
 import { ScanFile } from '../entities/scan-file.entity';
 import { Vulnerability } from '../entities/vulnerability.entity';
 import { Project } from '../entities/project.entity';
+import { ProjectMember } from '../entities/project-member.entity';
 import { ScansController } from './scans.controller';
 import { ScansService } from './scans.service';
 import { ScanEventsGateway } from './scan-events.gateway';
@@ -13,7 +14,7 @@ import { ScanEventsProcessor } from './scan-events.processor';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Scan, ScanFile, Vulnerability, Project]),
+    TypeOrmModule.forFeature([Scan, ScanFile, Vulnerability, Project, ProjectMember]),
     BullModule.registerQueue({ name: 'scan-events' }),
   ],
   controllers: [ScansController],

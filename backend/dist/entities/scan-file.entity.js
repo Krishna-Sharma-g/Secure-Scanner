@@ -21,6 +21,7 @@ __decorate([
 ], ScanFile.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => scan_entity_1.Scan, (scan) => scan.files, { onDelete: 'CASCADE' }),
+    (0, typeorm_1.JoinColumn)({ name: 'scan_id' }),
     __metadata("design:type", scan_entity_1.Scan)
 ], ScanFile.prototype, "scan", void 0);
 __decorate([

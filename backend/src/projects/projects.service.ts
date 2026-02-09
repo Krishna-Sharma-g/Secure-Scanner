@@ -36,22 +36,21 @@ export class ProjectsService {
     return saved;
   }
 
-  async findAll(ownerId: string): Promise<Project[]> {
-    return this.projects
-      .createQueryBuilder('project')
-      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
-      .where('pm.user_id = :ownerId', { ownerId })
-      .orderBy('project.created_at', 'DESC')
-      .getMany();
+  async findAll(userId: string): Promise<Project[]> {
+    const memberships = await this.members.find({
+      where: { userId },
+      relations: ['project'],
+      order: { createdAt: 'DESC' },
+    });
+    return memberships.map((m) => m.project);
   }
 
-  async findOne(id: string, ownerId: string): Promise<Project | null> {
-    return this.projects
-      .createQueryBuilder('project')
-      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
-      .where('project.id = :id', { id })
-      .andWhere('pm.user_id = :ownerId', { ownerId })
-      .getOne();
+  async findOne(id: string, userId: string): Promise<Project | null> {
+    const membership = await this.members.findOne({
+      where: { projectId: id, userId },
+      relations: ['project'],
+    });
+    return membership?.project ?? null;
   }
 
   async addMember(projectId: string, ownerId: string, dto: AddProjectMemberDto) {

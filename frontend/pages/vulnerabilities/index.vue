@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { authFetch, isLoggedIn } = useAuth();
+const { authFetch, isLoggedIn, ready } = useAuth();
+const { currentProjectId } = useProject();
 const vulns = ref<any[]>([]);
 
 const severityFilter = ref('all');
@@ -14,12 +15,13 @@ const filtered = computed(() => {
   });
 });
 
-onMounted(() => {
+const loadVulns = () => {
   if (!isLoggedIn.value) {
     vulns.value = [];
     return;
   }
-  authFetch('/api/vulnerabilities')
+  const url = `/api/vulnerabilities${currentProjectId.value ? `?project_id=${currentProjectId.value}` : ''}`;
+  authFetch(url)
     .then((data) => {
       if (Array.isArray(data)) {
         vulns.value = data;
@@ -35,6 +37,18 @@ onMounted(() => {
       console.error('Failed to load vulnerabilities', err);
       vulns.value = [];
     });
+};
+
+onMounted(() => {
+  if (ready.value && isLoggedIn.value) loadVulns();
+});
+
+watch([ready, isLoggedIn], ([isReady, logged]) => {
+  if (isReady && logged) loadVulns();
+});
+
+watch(currentProjectId, () => {
+  if (ready.value && isLoggedIn.value) loadVulns();
 });
 </script>
 
@@ -45,6 +59,10 @@ onMounted(() => {
         <h1>Vulnerabilities</h1>
         <p class="muted">All findings across scans.</p>
       </div>
+    </div>
+
+    <div v-if="!currentProjectId" class="card" style="margin-bottom:16px;">
+      <p class="muted">No project selected. Go to Projects and select one.</p>
     </div>
 
     <div class="card">

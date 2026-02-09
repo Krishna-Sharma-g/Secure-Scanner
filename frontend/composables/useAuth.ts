@@ -8,19 +8,23 @@ interface User {
 interface AuthState {
   token: string | null;
   user: User | null;
+  ready: boolean;
 }
 
 const authState = reactive<AuthState>({
   token: null,
   user: null,
+  ready: false,
 });
 
 export const useAuth = () => {
   const router = useRouter();
+  const config = useRuntimeConfig();
 
   const isLoggedIn = computed(() => !!authState.token);
   const user = computed(() => authState.user);
   const token = computed(() => authState.token);
+  const ready = computed(() => authState.ready);
 
   const init = () => {
     if (import.meta.client) {
@@ -36,10 +40,11 @@ export const useAuth = () => {
         }
       }
     }
+    authState.ready = true;
   };
 
   const login = async (email: string, password: string) => {
-    const res = await $fetch<{ access_token: string; user: User }>('/api/auth/login', {
+    const res = await $fetch<{ access_token: string; user: User }>(`${config.public.apiBase}/api/auth/login`, {
       method: 'POST',
       body: { email, password },
     });
@@ -51,7 +56,7 @@ export const useAuth = () => {
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const res = await $fetch<{ access_token: string; user: User }>('/api/auth/register', {
+    const res = await $fetch<{ access_token: string; user: User }>(`${config.public.apiBase}/api/auth/register`, {
       method: 'POST',
       body: { name, email, password },
     });
@@ -65,20 +70,32 @@ export const useAuth = () => {
   const logout = () => {
     authState.token = null;
     authState.user = null;
+    authState.ready = true;
     localStorage.removeItem('ss_token');
     localStorage.removeItem('ss_user');
     router.push('/login');
   };
 
   const authFetch = async <T>(url: string, opts: any = {}): Promise<T> => {
-    return $fetch<T>(url, {
-      ...opts,
-      headers: {
-        ...opts.headers,
-        ...(authState.token ? { Authorization: `Bearer ${authState.token}` } : {}),
-      },
-    });
+    try {
+      return await $fetch<T>(`${config.public.apiBase}${url}`, {
+        ...opts,
+        headers: {
+          ...opts.headers,
+          ...(authState.token ? { Authorization: `Bearer ${authState.token}` } : {}),
+        },
+      });
+    } catch (err: any) {
+      if (err?.status === 401) {
+        authState.token = null;
+        authState.user = null;
+        localStorage.removeItem('ss_token');
+        localStorage.removeItem('ss_user');
+        router.push('/login');
+      }
+      throw err;
+    }
   };
 
-  return { isLoggedIn, user, token, init, login, register, logout, authFetch };
+  return { isLoggedIn, user, token, ready, init, login, register, logout, authFetch };
 };

@@ -21,51 +21,65 @@ const scan_file_entity_1 = require("../entities/scan-file.entity");
 const vulnerability_entity_1 = require("../entities/vulnerability.entity");
 const scan_events_service_1 = require("./scan-events.service");
 const project_entity_1 = require("../entities/project.entity");
+const project_member_entity_1 = require("../entities/project-member.entity");
 let ScansService = class ScansService {
-    constructor(scans, scanFiles, vulnerabilities, projects, events) {
+    constructor(scans, scanFiles, vulnerabilities, projects, members, events) {
         this.scans = scans;
         this.scanFiles = scanFiles;
         this.vulnerabilities = vulnerabilities;
         this.projects = projects;
+        this.members = members;
         this.events = events;
     }
     async create(dto, ownerId) {
-        const project = await this.projects.findOne({ where: { id: dto.project_id, ownerId } });
+        const project = await this.projects
+            .createQueryBuilder('project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+            .where('project.id = :id', { id: dto.project_id })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
+            .getOne();
         if (!project) {
             throw new common_1.NotFoundException('Project not found');
         }
         const scan = this.scans.create({
             project,
+            createdBy: { id: ownerId },
             status: 'pending',
             scanConfig: dto.scan_config ?? {},
             startedAt: new Date(),
         });
         return this.scans.save(scan);
     }
-    async findAll(ownerId) {
-        return this.scans
+    async findAll(ownerId, projectId) {
+        const qb = this.scans
             .createQueryBuilder('scan')
             .leftJoin('scan.project', 'project')
-            .where('project.owner_id = :ownerId', { ownerId })
-            .orderBy('scan.created_at', 'DESC')
-            .take(50)
-            .getMany();
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+            .where('pm.user_id = :ownerId', { ownerId })
+            .orderBy('scan.createdAt', 'DESC')
+            .take(50);
+        if (projectId) {
+            qb.andWhere('project.id = :projectId', { projectId });
+        }
+        return qb.getMany();
     }
     async findOne(id, ownerId) {
         return this.scans
             .createQueryBuilder('scan')
             .leftJoinAndSelect('scan.vulnerabilities', 'vulnerability')
             .leftJoin('scan.project', 'project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('scan.id = :id', { id })
-            .andWhere('project.owner_id = :ownerId', { ownerId })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
             .getOne();
     }
     async update(id, dto, ownerId) {
         const scan = await this.scans
             .createQueryBuilder('scan')
             .leftJoin('scan.project', 'project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('scan.id = :id', { id })
-            .andWhere('project.owner_id = :ownerId', { ownerId })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
             .getOne();
         if (!scan) {
             return null;
@@ -93,8 +107,9 @@ let ScansService = class ScansService {
         const scan = await this.scans
             .createQueryBuilder('scan')
             .leftJoin('scan.project', 'project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('scan.id = :id', { id: scanId })
-            .andWhere('project.owner_id = :ownerId', { ownerId })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
             .getOne();
         if (!scan) {
             throw new common_1.NotFoundException('Scan not found');
@@ -121,8 +136,9 @@ let ScansService = class ScansService {
         const scan = await this.scans
             .createQueryBuilder('scan')
             .leftJoin('scan.project', 'project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('scan.id = :id', { id: scanId })
-            .andWhere('project.owner_id = :ownerId', { ownerId })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
             .getOne();
         if (!scan) {
             throw new common_1.NotFoundException('Scan not found');
@@ -147,6 +163,11 @@ let ScansService = class ScansService {
     }
     async createTestScan(dto, ownerId) {
         const project = await this.projects.save(this.projects.create({ name: `test-project-${Date.now()}`, owner: { id: ownerId } }));
+        await this.members.save(this.members.create({
+            project,
+            user: { id: ownerId },
+            role: project_member_entity_1.ProjectRole.OWNER,
+        }));
         const totalFiles = dto.files ?? 10;
         const scan = await this.scans.save(this.scans.create({
             project,
@@ -209,7 +230,9 @@ exports.ScansService = ScansService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(scan_file_entity_1.ScanFile)),
     __param(2, (0, typeorm_1.InjectRepository)(vulnerability_entity_1.Vulnerability)),
     __param(3, (0, typeorm_1.InjectRepository)(project_entity_1.Project)),
+    __param(4, (0, typeorm_1.InjectRepository)(project_member_entity_1.ProjectMember)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

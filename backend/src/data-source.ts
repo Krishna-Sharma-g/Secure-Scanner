@@ -11,6 +11,5 @@ export default new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/securescanner',
   entities: [Project, Scan, Vulnerability, ScanFile, User, ProjectMember],
-  migrations: ['dist/migrations/*.js'],
-  synchronize: false,
+  synchronize: true,
 });

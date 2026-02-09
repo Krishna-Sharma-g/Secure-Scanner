@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards, Request, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateVulnerabilityStatusDto } from './dto/update-vulnerability-status.dto';
 import { VulnerabilitiesService } from './vulnerabilities.service';
@@ -9,8 +9,8 @@ export class VulnerabilitiesController {
   constructor(private readonly vulnerabilitiesService: VulnerabilitiesService) {}
 
   @Get()
-  findAll(@Request() req: any) {
-    return this.vulnerabilitiesService.findAllForUser(req.user.id);
+  findAll(@Request() req: any, @Query('project_id') projectId?: string) {
+    return this.vulnerabilitiesService.findAllForUser(req.user.id, projectId);
   }
 
   @Get(':id')

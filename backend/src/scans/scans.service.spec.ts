@@ -6,9 +6,13 @@ import { Scan } from '../entities/scan.entity';
 import { ScanFile } from '../entities/scan-file.entity';
 import { Vulnerability } from '../entities/vulnerability.entity';
 import { Project } from '../entities/project.entity';
+import { ProjectMember } from '../entities/project-member.entity';
 
 describe('ScansService', () => {
   let service: ScansService;
+
+  const ownerId = 'user-1';
+  const mockProject: Partial<Project> = { id: 'proj-1', name: 'test' };
 
   const mockScan: Partial<Scan> = {
     id: 'scan-1',
@@ -40,11 +44,28 @@ describe('ScansService', () => {
     status: 'open',
   };
 
+  const mockScanQb = {
+    leftJoin: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getOne: jest.fn(),
+    getMany: jest.fn(),
+  };
+
+  const mockProjectQb = {
+    leftJoin: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn(),
+  };
+
   const scanRepo = {
     create: jest.fn().mockReturnValue(mockScan),
-    save: jest.fn().mockResolvedValue(mockScan),
-    find: jest.fn().mockResolvedValue([mockScan]),
-    findOne: jest.fn().mockResolvedValue({ ...mockScan }),
+    save: jest.fn().mockImplementation(() => Promise.resolve({ ...mockScan })),
+    createQueryBuilder: jest.fn().mockReturnValue(mockScanQb),
   };
 
   const scanFileRepo = {
@@ -58,8 +79,14 @@ describe('ScansService', () => {
   };
 
   const projectRepo = {
-    create: jest.fn(),
-    save: jest.fn(),
+    create: jest.fn().mockReturnValue(mockProject),
+    save: jest.fn().mockResolvedValue(mockProject),
+    createQueryBuilder: jest.fn().mockReturnValue(mockProjectQb),
+  };
+
+  const memberRepo = {
+    create: jest.fn().mockReturnValue({}),
+    save: jest.fn().mockResolvedValue({}),
   };
 
   const mockEventsService = {
@@ -76,19 +103,26 @@ describe('ScansService', () => {
         { provide: getRepositoryToken(ScanFile), useValue: scanFileRepo },
         { provide: getRepositoryToken(Vulnerability), useValue: vulnRepo },
         { provide: getRepositoryToken(Project), useValue: projectRepo },
+        { provide: getRepositoryToken(ProjectMember), useValue: memberRepo },
         { provide: ScanEventsService, useValue: mockEventsService },
       ],
     }).compile();
 
     service = module.get<ScansService>(ScansService);
     jest.clearAllMocks();
+    scanRepo.createQueryBuilder.mockReturnValue(mockScanQb);
+    projectRepo.createQueryBuilder.mockReturnValue(mockProjectQb);
+    mockProjectQb.getOne.mockResolvedValue(mockProject);
+    mockScanQb.getOne.mockResolvedValue({ ...mockScan });
+    mockScanQb.getMany.mockResolvedValue([mockScan]);
   });
 
   describe('create', () => {
     it('should create a scan with pending status', async () => {
       const dto = { project_id: 'proj-1' };
-      await service.create(dto);
+      await service.create(dto, ownerId);
 
+      expect(projectRepo.createQueryBuilder).toHaveBeenCalledWith('project');
       expect(scanRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'pending',
@@ -100,7 +134,7 @@ describe('ScansService', () => {
 
     it('should pass scan_config from DTO', async () => {
       const dto = { project_id: 'proj-1', scan_config: { languages: ['javascript'] } };
-      await service.create(dto);
+      await service.create(dto, ownerId);
 
       expect(scanRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -111,39 +145,42 @@ describe('ScansService', () => {
   });
 
   describe('findAll', () => {
-    it('should return the last 50 scans', async () => {
-      const result = await service.findAll();
+    it('should return scans for the user', async () => {
+      const result = await service.findAll(ownerId);
 
-      expect(scanRepo.find).toHaveBeenCalledWith({
-        order: { createdAt: 'DESC' },
-        take: 50,
-      });
+      expect(scanRepo.createQueryBuilder).toHaveBeenCalledWith('scan');
+      expect(mockScanQb.where).toHaveBeenCalledWith('pm.user_id = :ownerId', { ownerId });
       expect(result).toEqual([mockScan]);
+    });
+
+    it('should filter by projectId when provided', async () => {
+      await service.findAll(ownerId, 'proj-1');
+
+      expect(mockScanQb.andWhere).toHaveBeenCalledWith('project.id = :projectId', { projectId: 'proj-1' });
     });
   });
 
   describe('findOne', () => {
     it('should return scan with vulnerabilities relation', async () => {
-      await service.findOne('scan-1');
+      await service.findOne('scan-1', ownerId);
 
-      expect(scanRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'scan-1' },
-        relations: ['vulnerabilities'],
-      });
+      expect(scanRepo.createQueryBuilder).toHaveBeenCalledWith('scan');
+      expect(mockScanQb.leftJoinAndSelect).toHaveBeenCalledWith('scan.vulnerabilities', 'vulnerability');
+      expect(mockScanQb.where).toHaveBeenCalledWith('scan.id = :id', { id: 'scan-1' });
     });
   });
 
   describe('update', () => {
     it('should update scan status and metrics', async () => {
       const dto = { status: 'running', total_files: 10, files_processed: 5 };
-      await service.update('scan-1', dto);
+      await service.update('scan-1', dto, ownerId);
 
       expect(scanRepo.save).toHaveBeenCalled();
     });
 
     it('should emit complete event when status is completed', async () => {
       const dto = { status: 'completed', duration_seconds: 30 };
-      await service.update('scan-1', dto);
+      await service.update('scan-1', dto, ownerId);
 
       expect(mockEventsService.emitComplete).toHaveBeenCalledWith(
         expect.objectContaining({ scan_id: 'scan-1' }),
@@ -151,14 +188,14 @@ describe('ScansService', () => {
     });
 
     it('should not emit complete event for non-completed status', async () => {
-      await service.update('scan-1', { status: 'running' });
+      await service.update('scan-1', { status: 'running' }, ownerId);
 
       expect(mockEventsService.emitComplete).not.toHaveBeenCalled();
     });
 
     it('should return null when scan not found', async () => {
-      scanRepo.findOne.mockResolvedValueOnce(null);
-      const result = await service.update('missing', { status: 'running' });
+      mockScanQb.getOne.mockResolvedValueOnce(null);
+      const result = await service.update('missing', { status: 'running' }, ownerId);
 
       expect(result).toBeNull();
     });
@@ -169,7 +206,7 @@ describe('ScansService', () => {
       const files = [
         { file_path: 'src/app.js', language: 'javascript', lines_of_code: 100, vulnerability_count: 2 },
       ];
-      await service.addFiles('scan-1', files);
+      await service.addFiles('scan-1', files, ownerId);
 
       expect(scanFileRepo.create).toHaveBeenCalled();
       expect(scanFileRepo.save).toHaveBeenCalled();
@@ -177,7 +214,7 @@ describe('ScansService', () => {
     });
 
     it('should return empty array for empty files', async () => {
-      const result = await service.addFiles('scan-1', []);
+      const result = await service.addFiles('scan-1', [], ownerId);
       expect(result).toEqual([]);
       expect(scanFileRepo.save).not.toHaveBeenCalled();
     });
@@ -188,7 +225,7 @@ describe('ScansService', () => {
       const vulns = [
         { type: 'xss_dom', severity: 'high', file_path: 'src/app.js', line_number: 42, message: 'XSS' },
       ];
-      await service.addVulnerabilities('scan-1', vulns);
+      await service.addVulnerabilities('scan-1', vulns, ownerId);
 
       expect(vulnRepo.create).toHaveBeenCalled();
       expect(vulnRepo.save).toHaveBeenCalled();
@@ -196,7 +233,7 @@ describe('ScansService', () => {
     });
 
     it('should return empty array for empty vulnerabilities', async () => {
-      const result = await service.addVulnerabilities('scan-1', []);
+      const result = await service.addVulnerabilities('scan-1', [], ownerId);
       expect(result).toEqual([]);
       expect(vulnRepo.save).not.toHaveBeenCalled();
     });

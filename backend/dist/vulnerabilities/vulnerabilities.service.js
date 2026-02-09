@@ -27,23 +27,28 @@ let VulnerabilitiesService = class VulnerabilitiesService {
             take: 100,
         });
     }
-    async findAllForUser(ownerId) {
-        return this.vulnerabilities
+    async findAllForUser(ownerId, projectId) {
+        const qb = this.vulnerabilities
             .createQueryBuilder('v')
             .leftJoin('v.scan', 'scan')
             .leftJoin('scan.project', 'project')
-            .where('project.owner_id = :ownerId', { ownerId })
-            .orderBy('v.created_at', 'DESC')
-            .take(200)
-            .getMany();
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+            .where('pm.user_id = :ownerId', { ownerId })
+            .orderBy('v.createdAt', 'DESC')
+            .take(200);
+        if (projectId) {
+            qb.andWhere('project.id = :projectId', { projectId });
+        }
+        return qb.getMany();
     }
     async findOneForUser(id, ownerId) {
         return this.vulnerabilities
             .createQueryBuilder('v')
             .leftJoin('v.scan', 'scan')
             .leftJoin('scan.project', 'project')
+            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('v.id = :id', { id })
-            .andWhere('project.owner_id = :ownerId', { ownerId })
+            .andWhere('pm.user_id = :ownerId', { ownerId })
             .getOne();
     }
     async updateStatusForUser(id, dto, ownerId) {
