@@ -1,8 +1,10 @@
 <script setup lang="ts">
 const { isLoggedIn, user, init, logout } = useAuth();
+const { init: initProjects } = useProject();
 
 onMounted(() => {
   init();
+  initProjects();
 });
 </script>
 
@@ -12,6 +14,7 @@ onMounted(() => {
       <div class="brand">SecureScanner</div>
       <nav class="nav">
         <NuxtLink to="/">Dashboard</NuxtLink>
+        <NuxtLink to="/projects">Projects</NuxtLink>
         <NuxtLink to="/scans">Scans</NuxtLink>
         <NuxtLink to="/vulnerabilities">Vulnerabilities</NuxtLink>
       </nav>

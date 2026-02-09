@@ -26,7 +26,7 @@ import { ProjectMember } from './entities/project-member.entity';
       type: 'postgres',
       url: process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/securescanner',
       entities: [Project, Scan, Vulnerability, ScanFile, User, ProjectMember],
-      synchronize: false,
+      synchronize: true,
       logging: false,
     }),
     AuthModule,

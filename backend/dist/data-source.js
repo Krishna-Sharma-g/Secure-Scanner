@@ -12,6 +12,5 @@ exports.default = new typeorm_1.DataSource({
     type: 'postgres',
     url: process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/securescanner',
     entities: [project_entity_1.Project, scan_entity_1.Scan, vulnerability_entity_1.Vulnerability, scan_file_entity_1.ScanFile, user_entity_1.User, project_member_entity_1.ProjectMember],
-    migrations: ['dist/migrations/*.js'],
-    synchronize: false,
+    synchronize: true,
 });

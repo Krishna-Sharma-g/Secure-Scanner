@@ -45,7 +45,7 @@ let ProjectsService = class ProjectsService {
             .createQueryBuilder('project')
             .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
             .where('pm.user_id = :ownerId', { ownerId })
-            .orderBy('project.created_at', 'DESC')
+            .orderBy('project.createdAt', 'DESC')
             .getMany();
     }
     async findOne(id, ownerId) {

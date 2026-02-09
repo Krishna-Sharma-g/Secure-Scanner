@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute();
 const config = useRuntimeConfig();
-const { authFetch, isLoggedIn } = useAuth();
+const { authFetch, isLoggedIn, ready } = useAuth();
 const apiBase = config.public.apiBase || 'http://127.0.0.1:3000';
 const scan = ref<any | null>(null);
 const progress = ref({ files_processed: 0, total_files: 0, percentage: 0 });
@@ -21,7 +21,9 @@ const loadScan = async () => {
   }
 };
 
-onMounted(loadScan);
+watch([ready, isLoggedIn], ([isReady, logged]) => {
+  if (isReady && logged) loadScan();
+});
 onMounted(async () => {
   const { io } = await import('socket.io-client');
   const socket = io(`${apiBase}/ws`);

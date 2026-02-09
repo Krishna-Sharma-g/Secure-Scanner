@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Request, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateScanDto } from './dto/create-scan.dto';
 import { CreateScanFileDto } from './dto/create-scan-file.dto';
@@ -18,8 +18,8 @@ export class ScansController {
   }
 
   @Get()
-  findAll(@Request() req: any) {
-    return this.scansService.findAll(req.user.id);
+  findAll(@Request() req: any, @Query('project_id') projectId?: string) {
+    return this.scansService.findAll(req.user.id, projectId);
   }
 
   @Get(':id')

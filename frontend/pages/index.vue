@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { authFetch, isLoggedIn } = useAuth();
+const { authFetch, isLoggedIn, ready } = useAuth();
+const { currentProjectId } = useProject();
 const scans = ref<any[]>([]);
 const vulns = ref<any[]>([]);
 
@@ -17,14 +18,14 @@ const loadData = async () => {
     return;
   }
   try {
-    const scanData = await authFetch<any[]>('/api/scans');
+    const scanData = await authFetch<any[]>(`/api/scans${currentProjectId.value ? `?project_id=${currentProjectId.value}` : ''}`);
     scans.value = normalizeArray(scanData);
   } catch (err) {
     console.error('Failed to load scans', err);
     scans.value = [];
   }
   try {
-    const vulnData = await authFetch<any[]>('/api/vulnerabilities');
+    const vulnData = await authFetch<any[]>(`/api/vulnerabilities${currentProjectId.value ? `?project_id=${currentProjectId.value}` : ''}`);
     vulns.value = normalizeArray(vulnData);
   } catch (err) {
     console.error('Failed to load vulnerabilities', err);
@@ -32,7 +33,13 @@ const loadData = async () => {
   }
 };
 
-onMounted(loadData);
+watch([ready, isLoggedIn], ([isReady, logged]) => {
+  if (isReady && logged) loadData();
+});
+
+watch(currentProjectId, () => {
+  if (ready.value && isLoggedIn.value) loadData();
+});
 
 const runTestScan = async () => {
   try {
@@ -96,6 +103,10 @@ const donut = computed(() => {
       <button class="card" style="padding: 10px 14px; cursor: pointer;" @click="runTestScan">
         Run Test Scan
       </button>
+    </div>
+
+    <div v-if="!currentProjectId" class="card" style="margin-bottom: 16px;">
+      <p class="muted">No project selected. Go to Projects and select one.</p>
     </div>
 
     <div class="card-grid">

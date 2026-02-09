@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { authFetch, isLoggedIn } = useAuth();
+const { authFetch, isLoggedIn, ready } = useAuth();
+const { currentProjectId } = useProject();
 const scans = ref<any[]>([]);
 const loadError = ref<string | null>(null);
 
@@ -16,7 +17,8 @@ const loadScans = async () => {
       scans.value = [];
       return;
     }
-    const data = await authFetch<any[]>('/api/scans');
+    const url = `/api/scans${currentProjectId.value ? `?project_id=${currentProjectId.value}` : ''}`;
+    const data = await authFetch<any[]>(url);
     scans.value = normalizeArray(data);
     loadError.value = null;
   } catch (err) {
@@ -26,7 +28,13 @@ const loadScans = async () => {
   }
 };
 
-onMounted(loadScans);
+watch([ready, isLoggedIn], ([isReady, logged]) => {
+  if (isReady && logged) loadScans();
+});
+
+watch(currentProjectId, () => {
+  if (ready.value && isLoggedIn.value) loadScans();
+});
 </script>
 
 <template>
@@ -36,6 +44,10 @@ onMounted(loadScans);
         <h1>Scans</h1>
         <p class="muted">All recorded scans and their status.</p>
       </div>
+    </div>
+
+    <div v-if="!currentProjectId" class="card" style="margin-bottom:16px;">
+      <p class="muted">No project selected. Go to Projects and select one.</p>
     </div>
 
     <div class="card">

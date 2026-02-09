@@ -18,15 +18,19 @@ export class VulnerabilitiesService {
     });
   }
 
-  async findAllForUser(ownerId: string): Promise<Vulnerability[]> {
-    return this.vulnerabilities
+  async findAllForUser(ownerId: string, projectId?: string): Promise<Vulnerability[]> {
+    const qb = this.vulnerabilities
       .createQueryBuilder('v')
       .leftJoin('v.scan', 'scan')
       .leftJoin('scan.project', 'project')
-      .where('project.owner_id = :ownerId', { ownerId })
-      .orderBy('v.created_at', 'DESC')
-      .take(200)
-      .getMany();
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+      .where('pm.user_id = :ownerId', { ownerId })
+      .orderBy('v.createdAt', 'DESC')
+      .take(200);
+    if (projectId) {
+      qb.andWhere('project.id = :projectId', { projectId });
+    }
+    return qb.getMany();
   }
 
   async findOneForUser(id: string, ownerId: string): Promise<Vulnerability | null> {
@@ -34,8 +38,9 @@ export class VulnerabilitiesService {
       .createQueryBuilder('v')
       .leftJoin('v.scan', 'scan')
       .leftJoin('scan.project', 'project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
       .where('v.id = :id', { id })
-      .andWhere('project.owner_id = :ownerId', { ownerId })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
       .getOne();
   }
 

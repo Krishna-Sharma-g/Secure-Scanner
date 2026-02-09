@@ -14,6 +14,7 @@ const scan_entity_1 = require("../entities/scan.entity");
 const scan_file_entity_1 = require("../entities/scan-file.entity");
 const vulnerability_entity_1 = require("../entities/vulnerability.entity");
 const project_entity_1 = require("../entities/project.entity");
+const project_member_entity_1 = require("../entities/project-member.entity");
 const scans_controller_1 = require("./scans.controller");
 const scans_service_1 = require("./scans.service");
 const scan_events_gateway_1 = require("./scan-events.gateway");
@@ -25,7 +26,7 @@ exports.ScansModule = ScansModule;
 exports.ScansModule = ScansModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([scan_entity_1.Scan, scan_file_entity_1.ScanFile, vulnerability_entity_1.Vulnerability, project_entity_1.Project]),
+            typeorm_1.TypeOrmModule.forFeature([scan_entity_1.Scan, scan_file_entity_1.ScanFile, vulnerability_entity_1.Vulnerability, project_entity_1.Project, project_member_entity_1.ProjectMember]),
             bull_1.BullModule.registerQueue({ name: 'scan-events' }),
         ],
         controllers: [scans_controller_1.ScansController],

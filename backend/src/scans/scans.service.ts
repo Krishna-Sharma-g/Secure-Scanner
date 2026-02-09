@@ -11,6 +11,7 @@ import { UpdateScanDto } from './dto/update-scan.dto';
 import { ScanEventsService } from './scan-events.service';
 import { CreateTestScanDto } from './dto/create-test-scan.dto';
 import { Project } from '../entities/project.entity';
+import { ProjectMember, ProjectRole } from '../entities/project-member.entity';
 
 @Injectable()
 export class ScansService {
@@ -23,16 +24,24 @@ export class ScansService {
     private readonly vulnerabilities: Repository<Vulnerability>,
     @InjectRepository(Project)
     private readonly projects: Repository<Project>,
+    @InjectRepository(ProjectMember)
+    private readonly members: Repository<ProjectMember>,
     private readonly events: ScanEventsService,
   ) {}
 
   async create(dto: CreateScanDto, ownerId: string): Promise<Scan> {
-    const project = await this.projects.findOne({ where: { id: dto.project_id, ownerId } });
+    const project = await this.projects
+      .createQueryBuilder('project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+      .where('project.id = :id', { id: dto.project_id })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
+      .getOne();
     if (!project) {
       throw new NotFoundException('Project not found');
     }
     const scan = this.scans.create({
       project,
+      createdBy: { id: ownerId } as any,
       status: 'pending',
       scanConfig: dto.scan_config ?? {},
       startedAt: new Date(),
@@ -40,14 +49,18 @@ export class ScansService {
     return this.scans.save(scan);
   }
 
-  async findAll(ownerId: string): Promise<Scan[]> {
-    return this.scans
+  async findAll(ownerId: string, projectId?: string): Promise<Scan[]> {
+    const qb = this.scans
       .createQueryBuilder('scan')
       .leftJoin('scan.project', 'project')
-      .where('project.owner_id = :ownerId', { ownerId })
-      .orderBy('scan.created_at', 'DESC')
-      .take(50)
-      .getMany();
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
+      .where('pm.user_id = :ownerId', { ownerId })
+      .orderBy('scan.createdAt', 'DESC')
+      .take(50);
+    if (projectId) {
+      qb.andWhere('project.id = :projectId', { projectId });
+    }
+    return qb.getMany();
   }
 
   async findOne(id: string, ownerId: string): Promise<Scan | null> {
@@ -55,8 +68,9 @@ export class ScansService {
       .createQueryBuilder('scan')
       .leftJoinAndSelect('scan.vulnerabilities', 'vulnerability')
       .leftJoin('scan.project', 'project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
       .where('scan.id = :id', { id })
-      .andWhere('project.owner_id = :ownerId', { ownerId })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
       .getOne();
   }
 
@@ -64,8 +78,9 @@ export class ScansService {
     const scan = await this.scans
       .createQueryBuilder('scan')
       .leftJoin('scan.project', 'project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
       .where('scan.id = :id', { id })
-      .andWhere('project.owner_id = :ownerId', { ownerId })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
       .getOne();
     if (!scan) {
       return null;
@@ -89,8 +104,9 @@ export class ScansService {
     const scan = await this.scans
       .createQueryBuilder('scan')
       .leftJoin('scan.project', 'project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
       .where('scan.id = :id', { id: scanId })
-      .andWhere('project.owner_id = :ownerId', { ownerId })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
       .getOne();
     if (!scan) {
       throw new NotFoundException('Scan not found');
@@ -120,8 +136,9 @@ export class ScansService {
     const scan = await this.scans
       .createQueryBuilder('scan')
       .leftJoin('scan.project', 'project')
+      .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
       .where('scan.id = :id', { id: scanId })
-      .andWhere('project.owner_id = :ownerId', { ownerId })
+      .andWhere('pm.user_id = :ownerId', { ownerId })
       .getOne();
     if (!scan) {
       throw new NotFoundException('Scan not found');
@@ -150,6 +167,13 @@ export class ScansService {
   async createTestScan(dto: CreateTestScanDto, ownerId: string) {
     const project = await this.projects.save(
       this.projects.create({ name: `test-project-${Date.now()}`, owner: { id: ownerId } as Project['owner'] }),
+    );
+    await this.members.save(
+      this.members.create({
+        project,
+        user: { id: ownerId } as any,
+        role: ProjectRole.OWNER,
+      }),
     );
 
     const totalFiles = dto.files ?? 10;

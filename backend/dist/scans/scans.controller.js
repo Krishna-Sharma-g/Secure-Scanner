@@ -26,8 +26,8 @@ let ScansController = class ScansController {
     create(dto, req) {
         return this.scansService.create(dto, req.user.id);
     }
-    findAll(req) {
-        return this.scansService.findAll(req.user.id);
+    findAll(req, projectId) {
+        return this.scansService.findAll(req.user.id, projectId);
     }
     findOne(id, req) {
         return this.scansService.findOne(id, req.user.id);
@@ -57,8 +57,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('project_id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ScansController.prototype, "findAll", null);
 __decorate([

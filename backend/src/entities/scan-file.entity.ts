@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -13,6 +14,7 @@ export class ScanFile {
   id!: string;
 
   @ManyToOne(() => Scan, (scan) => scan.files, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'scan_id' })
   scan!: Scan;
 
   @Column({ name: 'scan_id', type: 'uuid' })
