@@ -1,0 +1,27 @@
+# Node
+node_modules/
+.pnpm-store/
+
+# Go
+/bin/
+*.exe
+*.out
+
+# Logs
+*.log
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Build outputs
+/dist/
+/.output/
+/.nuxt/
+
+# Editor
+.vscode/
+.idea/
