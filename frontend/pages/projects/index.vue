@@ -33,6 +33,10 @@ const createProject = async () => {
   }
 };
 
+onMounted(() => {
+  if (ready.value && isLoggedIn.value) loadProjects();
+});
+
 watch([ready, isLoggedIn], ([isReady, logged]) => {
   if (isReady && logged) loadProjects();
 });

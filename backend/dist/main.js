@@ -13,7 +13,7 @@ async function bootstrap() {
         transform: true,
         forbidNonWhitelisted: true,
     }));
-    const port = process.env.PORT || 3001;
+    const port = process.env.PORT || 3000;
     await app.listen(port);
     // eslint-disable-next-line no-console
     console.log(`SecureScanner API listening on ${port}`);

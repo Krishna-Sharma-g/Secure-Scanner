@@ -40,21 +40,20 @@ let ProjectsService = class ProjectsService {
         }));
         return saved;
     }
-    async findAll(ownerId) {
-        return this.projects
-            .createQueryBuilder('project')
-            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
-            .where('pm.user_id = :ownerId', { ownerId })
-            .orderBy('project.createdAt', 'DESC')
-            .getMany();
+    async findAll(userId) {
+        const memberships = await this.members.find({
+            where: { userId },
+            relations: ['project'],
+            order: { createdAt: 'DESC' },
+        });
+        return memberships.map((m) => m.project);
     }
-    async findOne(id, ownerId) {
-        return this.projects
-            .createQueryBuilder('project')
-            .leftJoin('project_members', 'pm', 'pm.project_id = project.id')
-            .where('project.id = :id', { id })
-            .andWhere('pm.user_id = :ownerId', { ownerId })
-            .getOne();
+    async findOne(id, userId) {
+        const membership = await this.members.findOne({
+            where: { projectId: id, userId },
+            relations: ['project'],
+        });
+        return membership?.project ?? null;
     }
     async addMember(projectId, ownerId, dto) {
         const project = await this.findOne(projectId, ownerId);

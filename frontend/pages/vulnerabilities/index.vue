@@ -39,6 +39,10 @@ const loadVulns = () => {
     });
 };
 
+onMounted(() => {
+  if (ready.value && isLoggedIn.value) loadVulns();
+});
+
 watch([ready, isLoggedIn], ([isReady, logged]) => {
   if (isReady && logged) loadVulns();
 });

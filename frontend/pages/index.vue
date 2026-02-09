@@ -33,6 +33,10 @@ const loadData = async () => {
   }
 };
 
+onMounted(() => {
+  if (ready.value && isLoggedIn.value) loadData();
+});
+
 watch([ready, isLoggedIn], ([isReady, logged]) => {
   if (isReady && logged) loadData();
 });

@@ -28,6 +28,10 @@ const loadScans = async () => {
   }
 };
 
+onMounted(() => {
+  if (ready.value && isLoggedIn.value) loadScans();
+});
+
 watch([ready, isLoggedIn], ([isReady, logged]) => {
   if (isReady && logged) loadScans();
 });

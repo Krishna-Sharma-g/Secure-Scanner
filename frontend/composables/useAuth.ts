@@ -19,6 +19,7 @@ const authState = reactive<AuthState>({
 
 export const useAuth = () => {
   const router = useRouter();
+  const config = useRuntimeConfig();
 
   const isLoggedIn = computed(() => !!authState.token);
   const user = computed(() => authState.user);
@@ -43,7 +44,7 @@ export const useAuth = () => {
   };
 
   const login = async (email: string, password: string) => {
-    const res = await $fetch<{ access_token: string; user: User }>('/api/auth/login', {
+    const res = await $fetch<{ access_token: string; user: User }>(`${config.public.apiBase}/api/auth/login`, {
       method: 'POST',
       body: { email, password },
     });
@@ -55,7 +56,7 @@ export const useAuth = () => {
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const res = await $fetch<{ access_token: string; user: User }>('/api/auth/register', {
+    const res = await $fetch<{ access_token: string; user: User }>(`${config.public.apiBase}/api/auth/register`, {
       method: 'POST',
       body: { name, email, password },
     });
@@ -77,7 +78,7 @@ export const useAuth = () => {
 
   const authFetch = async <T>(url: string, opts: any = {}): Promise<T> => {
     try {
-      return await $fetch<T>(url, {
+      return await $fetch<T>(`${config.public.apiBase}${url}`, {
         ...opts,
         headers: {
           ...opts.headers,
